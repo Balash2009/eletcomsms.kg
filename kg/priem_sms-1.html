@@ -1,0 +1,569 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head profile="http://gmpg.org/xfn/11">
+        <title>smspro.nikita.kg — Автоматическая система рассылки SMS</title>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="imagetoolbar" content="no">
+        <meta http-equiv="PRAGMA" content="NO-CACHE">
+
+        <script type='text/javascript' src='../js/jquery-1.js'></script>
+
+        <link rel="stylesheet" href="../css/cssf-base-1.css" type="text/css" media="screen">
+        <link rel="stylesheet" href="css/styles-1.css" type="text/css" media="screen">
+
+        <!--[if lte IE 6]><link rel="stylesheet" href="/css/cssf-ie6.css" type="text/css" media="screen" /><![endif]-->
+        <!--[if IE 7]><link rel="stylesheet" href="/css/cssf-ie7.css" type="text/css" media="screen" /><![endif]-->
+
+        <!-- JQuery UI styles-->
+        <link rel="stylesheet" type="text/css" href="../js/themes/ui-lightness/jquery.ui.all-1.css">
+
+        <script type='text/javascript' src='../js/jquery-ui-1.8.9.custom.min-1.js'></script>
+
+        <!-- Скрипты для работы слайдера со скидкой -->
+        <script type='text/javascript' src="../js/jquery.tabSlideOut.v1.3-1.js"></script>
+        <script type='text/javascript' src='../js/jquery.timers-1.js'></script>
+        <script type='text/javascript' src="js/slideLabel-1.js"></script>
+        <script type='text/javascript' src="js/slideLabel2-1.js"></script>
+        <style type="text/css">
+            .invalid{background-color:#f00}
+        </style>
+    </head>
+    <body>
+        <!-- Jquery AJAX block -->
+         <script type="text/javascript">
+
+            var $dialogDemoHeader = $('<div></div>')
+            .html('<div id="errnotesdemoheader"/>')
+            .dialog({
+                autoOpen: false,
+                title: "Режим демонстрации возможностей",
+                resizable: false,
+                modal: true,
+                buttons: {
+                    "Закрыть": function() {
+                        $( this ).dialog( "close" );
+                    },
+                    "Регистрация": function() {
+                        $( this ).dialog( "close" );
+                        window.location = '/register.html';
+                    }
+                },
+                open: function() {
+                    $('.ui-dialog-buttonset').css('text-align','center');
+                    $('.ui-dialog-buttonset').css('float','none');
+                    $('.ui-icon-closethick').hide();
+
+                    $('#div.ui-dialog-buttonpane button').removeClass('ui-state-focus ui-state-hover ui-state-active');
+                    $("div.ui-dialog-buttonpane button:focus").next("button").focus();
+                }
+            });
+			
+            var isShowLbl1 = true;
+            var serviceName = 'smspro.nikita.kg';
+
+            jQuery(document).ready(function(){
+                $.ajax({
+                    url: '/register',
+                    dataType : 'json',
+                    data : 'command=check',
+                    cache:false,
+                    success: function(jo) {
+                        if ("" + jo.result == "1") {
+                            $('li[class="f-right"]').hide();
+                        }
+                        if ("" + jo.resultDemo == "1") {
+                            if ("" + jo.resultTxt == "1") {
+                                $('#headLogin').html(jo.txt);
+                                if ("" + jo.result == "0"){
+                                    $('#smsLeftA').click(function() {
+                                        $dialogDemoHeader.dialog('open');
+                                        $('#errnotesdemoheader').html("<br/>Чтобы пополнить счет, пожалуйста, <a href=\"register.html\">зарегистрируйтесь</a> и укажите при регистрации номер своего мобильного телефона. Мы сразу добавим вам 10 бесплатных СМС для проверки сервиса, и вы сможете проводить Ваши первые рассылки от имени Вашего мобильного телефона уже через 1 минуту!");
+                                        return false;
+                                    });
+                                }
+                            }
+                            $('#headLogin').show();
+                            $('#mainLKli').show();
+                        }else{
+                            $('#headNotLogin').show();
+                        }
+                        $('#phonepng').show();
+                    }
+                });
+                $('.prevent').click(function() {
+                    return false;
+                });
+                $('#page').css('padding', '10px 0');
+
+                $('#doLogin').click(function(){
+                    var notLogin = false;
+                    $.ajax({
+                        url: '/authCryptServlet',
+                        dataType : 'json',
+                        cache: false,
+                        async: false,
+                        data: "action=cryptPass&login=" +$('#login').val() + '&password=' +  $('#pass').val() + '&serviceName=' + serviceName,
+                        success: function(jo) {
+                            if (jo != null ) {
+                                if (jo.res == 1){
+                                    $('#pass').val(jo.pass);
+                                    $("#loginForm").submit();
+                                }
+                                else if (jo.res == 2){
+                                    $("#errorPanel").show();
+                                    setTimeout('$("#errorPanel").fadeOut(900)', 1200);
+                                    $('#pass').val("");
+                                    notLogin = true;
+                                }else{
+                                    if (jo.res == 0){
+                                        $("#errorPanel").show();
+                                        setTimeout('$("#errorPanel").fadeOut(900)', 1200);
+                                        notLogin = true;
+                                    }
+                                }
+                            }
+                        }
+                    } );
+                    if (notLogin) {
+                        return false;
+                    }
+                });
+                
+                var dhtml = "";
+                dhtml += '<div id="errnotes"><br/><br/></div>';
+                dhtml += '<div id="emailbox">';
+                dhtml += '<p style="text-align: left;">';
+                dhtml += '<input type="radio" id="emailBtn" name="em" onclick="chPhoneToEmail();" checked/>';
+                dhtml += ' <label class="gray_text" for="email">Отправить на Email</label>';
+                dhtml += '</p>';
+                dhtml += '<p style="text-align: left;">';
+                dhtml += '<input type="radio" id="smsBtn" name="sms" onclick="chEmailToPhone();"/>';
+                dhtml += ' <label class="gray_text" for="sms">Отправить SMS на телефон</label>';
+                dhtml += '</p>';
+                dhtml += '<br/>';
+                dhtml += '<p><input type="email" value="" placeholder="mail@example.com" class="text" id="email" name="email" size="35" maxlength="200"/></p>';
+                dhtml += '<p><input style="display: none;" type="tel" value="" placeholder="996xxxxxxxxx" class="text" id="phone" name="phone" size="35" maxlength="12"/></p>';
+                dhtml += '<input type="hidden" name="passRecovery" id="passRecovery" value="email">';
+                dhtml += '</div>';
+                var $dialog = $('<div></div>')
+                .html(dhtml)
+                .dialog({
+                    autoOpen: false,
+                    title: "Напомнить пароль",
+                    resizable: false,
+                    modal: true,
+                    buttons: {
+                        "Отправить": function() {
+                            
+                            var passRecovery = $("#passRecovery").val();
+                            if (passRecovery == 'email') {
+                                var filter = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9])+$/;
+                                if (filter.test($('#email').val())) {
+                                    $('#email').removeClass("invalid");
+                                    $.ajax({
+                                        url: '/sendPass',
+                                        dataType : 'json',
+                                        cache: false,
+                                        data: "command=sendpass&type=email&email=" + $('#email').val() + '&serviceName=' + serviceName,
+                                        success: function(jo) {
+                                            if (jo.error.length > 0) {
+                                                $('#errnotes').html("<br/><img src='i/stop.png' alt=''/>&nbsp;" + jo.error + "<br/><br/>");
+                                                $('#email').addClass('invalid');
+                                                $('.invalid').keyup(function() {
+                                                    var o = $( this );
+                                                    if (o.hasClass('invalid')) {
+                                                        o.removeClass('invalid');
+                                                    }
+                                                });
+                                            }
+                                            else {
+                                                $('#errnotes').addClass("green_text");
+                                                $('#errnotes').html("<br/>Данные для входа отправлены<br/>");
+                                                $('#emailbox').hide();
+                                                $('button[class*="ui-button"]').first().hide();
+                                            }
+                                        }
+                                    } );
+                                }
+                                else {
+                                    $('#errnotes').html("<br/><img src='i/stop.png' alt=''/>&nbsp;Неправильный формат e-mail!<br/><br/>");
+                                    $('#email').addClass('invalid');
+                                    $('.invalid').keyup(function() {
+                                        var o = $( this );
+                                        if (o.hasClass('invalid')) {
+                                            o.removeClass('invalid');
+                                        }
+                                    });
+                                }
+                            } else if (passRecovery = 'phone') {
+                                var filter = /^[0-9]+$/;
+                                if (filter.test($('#phone').val()) && $("#phone").val().length >= 11) {
+                                    $('#phone').removeClass("invalid");
+                                    $.ajax({
+                                        url: '/sendPass',
+                                        dataType : 'json',
+                                        cache: false,
+                                        data: "command=sendpass&type=sms&phone=" + $('#phone').val() + '&serviceName=' + serviceName,
+                                        success: function(jo) {
+                                            if (jo.error.length > 0) {
+                                                $('#errnotes').html("<br/><img src='i/stop.png' alt=''/>&nbsp;" + jo.error + "<br/><br/>");
+                                                $('#phone').addClass('invalid');
+                                                $('.invalid').keyup(function() {
+                                                    var o = $( this );
+                                                    if (o.hasClass('invalid')) {
+                                                        o.removeClass('invalid');
+                                                    }
+                                                });
+                                            }
+                                            else {
+                                                $('#errnotes').addClass("green_text");
+                                                $('#errnotes').html("<br/>Данные для входа отправлены<br/>");
+                                                $('#emailbox').hide();
+                                                $('button[class*="ui-button"]').first().hide();
+                                            }
+                                        }
+                                    } );
+                                }
+                                else {
+                                    $('#errnotes').html("<br/><img src='i/stop.png' alt=''/>&nbsp;Неправильный формат номера телефона!<br/><br/>");
+                                    $('#phone').addClass('invalid');
+                                    $('.invalid').keyup(function() {
+                                        var o = $( this );
+                                        if (o.hasClass('invalid')) {
+                                            o.removeClass('invalid');
+                                        }
+                                    });
+                                }
+                            }
+                            
+                        },
+                        "Закрыть": function() {
+                            $('button[class*="ui-button"]').show();
+                            $('#errnotes').html("<br/><br/>");
+                            $('#errnotes').removeClass("green_text");
+                            $('#email').val("");
+                            $('#email').removeClass('invalid');
+                            $( this ).dialog( "close" );
+                        }
+                    },
+                    open: function() {
+                        $('.ui-dialog-buttonset').css('text-align','center');
+                        $('.ui-dialog-buttonset').css('float','none');
+                        $('.ui-icon-closethick').hide();
+                        $('#emailbox').show();
+                    }
+                });
+                $('#recover').click(function(){
+                    $dialog.dialog('open');
+                    return false;
+                });
+                
+                // скрывание слайдера ярлыка со скидкой если запрос пришел не с директа
+                if (location.search.indexOf(flag) > -1 || document.referrer.indexOf(directYandexN) > -1 || isCookieSet(cooName)){
+                    $('#slideLabel').show();
+                    setCookie(cooName,1);
+                }else{
+                    $('#slideLabel').hide();
+                    isShowLbl1 = false;
+                }
+                if (!isShowLbl1){
+                    topPos = '155px';
+                }
+				
+				initSendSlider();
+            });
+            
+                       
+            function chEmailToPhone() {
+                if (document.getElementById("emailBtn").checked) {
+                    document.getElementById("emailBtn").checked = false;
+                    document.getElementById("smsBtn").checked = true;
+                }
+                document.getElementById("phone").style = "";
+                document.getElementById("email").style = "display: none";
+                document.getElementById("passRecovery").value = "phone";
+            }
+            
+            function chPhoneToEmail() {
+                if (document.getElementById("smsBtn").checked) {
+                    document.getElementById("smsBtn").checked = false;
+                    document.getElementById("emailBtn").checked = true;
+                }
+                document.getElementById("phone").style = "display: none";
+                document.getElementById("email").style = "";
+                document.getElementById("passRecovery").value = "email";
+            }
+			
+        </script>
+
+	<!-- Yandex.Metrika counter -->
+	<script type="text/javascript">
+	   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+	   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+	   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+	   ym(88356562, "init", {
+		clickmap:true,
+		trackLinks:true,
+		accurateTrackBounce:true
+	   });
+	</script>
+	<noscript><div><img src="../watch/88356562/1" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+	<!-- /Yandex.Metrika counter -->
+
+        <div id="page">
+            <div class="okey" id="errorPanel" style="display: none; background: red">
+                Неправильные имя пользователя или пароль
+            </div><!-- okey -->
+            <div class="header">
+                <div id="headLogin" class="prof_info f-right a-right" style="display: none">
+                    <strong></strong>
+                    <p><a class="gray" href="../exit.jsp-1.html">Выйти</a></p>
+                </div>
+                <div id="headNotLogin" class="authk f-right" style="display: none">
+                    <!-- -->
+                    <form id="loginForm" method="POST" action='j_security_check'>
+                        <div class="login">
+
+                            <label for="login">Логин:</label>
+                            <input type="text" class="text" id="login" name="j_username">
+
+                            <label for="pass">Пароль:</label>
+                            <input type="password" class="text" id="pass" name="j_password">
+                        </div><!-- .login -->
+                        <div class="f-left">
+                            <!--<input type="button" class="button" id="doLogin" value="Войти" />-->
+                            <div class="button_contine" style="padding: 0px 10px; margin: -10px 0 -5px 0;">
+                                <a href="#" id="doLogin" style="width: 51px; font-size: 1.1em">
+                                    <em class="rc"></em>
+                                    <em class="lc"></em>
+                                	Войти
+                                </a>
+                            </div><!-- .button_contine	-->
+                            <div class="cc"></div><!-- cc -->
+                            <a href="#" id="recover" style="margin: 0; padding: 7px 0 0;">Напомнить пароль</a>
+                        </div><!-- .enter -->
+                    </form>
+                </div><!-- .auth -->
+                <div class="logok img-repl f-left">
+                    <h1><a href="../index-1.htm">smspro.nikita.kg</a></h1>
+                </div><!-- .logo -->
+                <div class="slogank f-left">Cистема автоматизированной <br>рассылки SMS</div><!-- .slogan	-->
+                <img id="phonepng" class="phonchik f-right" src="i/phone-1.png" style="display: none">
+            </div><!-- .header-->
+
+            <div class="menu">
+                <em class="rc"></em>
+                <em class="lc"></em>
+                <ul>
+                    <li class="f-right"><a href="register-1.html">Регистрация</a></li>
+                    <li id="mainLKli" style="display: none"><a href="../mainlk.jsp-1.html">Личный кабинет</a></li>
+                    <li><a href="prices-1.html">Услуги и цены</a></li>
+                    <li><a href="techno-1.html">Технические возможности</a></li>
+                    <li><a href="about-1.html">Надежность и безопасность</a></li>
+                    <li><a href="faq-1.html">Вопросы и ответы</a></li>
+                    <li><a href="contacts-1.html">Контакты</a></li>
+                </ul>
+            </div><!-- .menu -->            
+
+
+            <div class="content">
+
+                <h1>Услуги и цены</h1>                
+
+                <table>
+                    <tr class="nohover">
+                        <td class="invis-table">
+                        
+                        <!--h3><a href="prices.html">Отправка SMS</a> <font style="color:grey"> |</font> <b>Прием SMS</b> <font style="color:grey">| <a href="hlr_zaprosy.html">HLR & PhoneInfo</a> | <a href="flash_sms.html">Flash SMS</a> | </font><a href="sposoby_oplaty.html">Способы оплаты</a></h3-->
+                        <h3><a href="prices-1.html">Отправка SMS</a> <font style="color:grey"> |</font> <b>Прием SMS</b> <font style="color:grey">| <a href="otp-sms-1.html">OTP-сервис</a> | <a href="flash_sms-1.html">Flash SMS</a> | </font><a href="sposoby_oplaty-1.html">Способы оплаты</a></h3>
+                        <br>
+                        <h3>Вам требуется получать обратную связь с вашими клиентами?</h3>
+                        <p>
+							Для обеспечения обратной связи – приема SMS-сообщений от абонентов всех сотовых операторов Кыргызстана компания 
+							NIKITA предоставляет услугу <b>«Аренда короткого SMS-номера»</b>.
+							<br>
+							<br>
+							<table style="font-size:1.25em">
+                    			<tr>
+                        			<td class="r-td" style="text-align:left;padding-left:30px">
+										Стоимость аренды короткого номера для клиента
+									</td>
+									<td class="r-td" style="text-align:left">
+										1000 сом./мес.
+									</td>
+								</tr>
+								<tr>
+									<td class="r-td" style="text-align:left;padding-left:30px">
+										Стоимость приема одного SMS-сообщения для клиента
+									</td>
+									<td class="r-td" style="text-align:left">
+										1.00 сом.
+									</td>
+								</tr>
+								<tr>
+									<td class="r-td" style="text-align:left;padding-left:30px">
+										Вид арендуемого номера: четырехзначный</td>
+									<td class="r-td" style="text-align:left">
+										<b>7115</b></td>
+								</tr>
+								<tr>
+									<td class="r-td" style="text-align:left;padding-left:30px">
+										Стоимость отправки SMS для абонента
+									</td> 
+									<td class="r-td" style="text-align:left">
+										1.00 сом.</td>
+								</tr>
+							</table>
+							<br>
+
+							Обрабатывать получаемые SMS-сообщения можно двумя способами:
+							<br><br>
+							<ol>
+								<li>В WEB-интерфейсе системы SMSPRO.NIKITA.KG с возможностью фильтрации и выгрузки SMS-сообщений в Excel</li>
+								<li>Принимать SMS-сообщения для обработки на стороне клиента по <a href="documents/smspro.nikita.kg-XML-api-1.pdf">HTTP(s)/XML-протоколу</a></li>
+							</ol>
+							<br>
+							Если у вас стоит задача
+							<br><br>
+							<ul>
+								<li>оценить эффективность маркетинговой акции</li>
+								<li>провести опрос / голосование</li>
+								<li>получать по SMS заказы и предложения о клиентах</li>
+								<li>проводить многоэтапные маркетинговые акции типа «приведи друга»</li>
+							</ul>
+							то услуга <b>«Аренда короткого SMS-номера»</b> - для Вас!
+							<br><br><br>
+
+
+							* В данный момент при подключении услуги «Аренда короткого SMS-номера» Вам будет доступен только номер <b>7115</b>.<br>
+							Возможность подключения другого короткого номера уточняйте у менеджера.
+                            
+							
+                        </td>
+                        <td class="invis-table" style="width:30px;">
+                        </td>
+                        <td class="invis-table" style="font-size: 1em; width:270px; text-align:center">
+                            <div class="info">
+                                <span class="plus">Вы сможете проводить ваши автоматические SMS-рассылки от имени арендуемого номера.</span>
+                                <em class="tl"></em><em class="tr"></em><em class="bl"></em><em class="br"></em>
+                            </div><!-- .info -->
+                            <br><br><br>
+                            <a class="pdf" href="documents/smspro.nikita.kg-XML-api-1.pdf">Загрузить описание XML-API</a>
+                        </td>
+                    </tr>
+                </table>
+
+
+                <br><br><br>
+
+                <h1>Способы оплаты</h1>                
+                <table>
+                    <tr class="nohover">
+                        <td class="invis-table">                            
+                            <h3>Мгновенное зачисление средств с комиссией от 0%!</h3>                            
+                            <p>
+                            	<br>
+								Для начала работы требуется только <a href="register-1.html">регистрация</a>, после чего Вы сразу сможете пополнить свой счет и приступить к работе уже через 5 минут – <b>даже без согласования с менеджером!</b>
+							</p>
+							<p>
+				Пополнить счет в нашей системе можно несколькими способами. Мы принимаем:
+				<ul>
+					<li><a href="sposoby_oplaty-1.html#bn">Безналичный расчет</a></li>
+					<li><a href="sposoby_oplaty-1.html#cards">Банковские карты</a></li>
+					<li><a href="sposoby_oplaty-1.html#term">Оплата через терминалы <strong>Pay24</strong></a></li>					
+					<li><a href="sposoby_oplaty-1.html#elsom">Оплата через электронный кошелек <strong>ЭЛСОМ</strong></a></li>					
+				</ul>
+				<br>
+				<a href="sposoby_oplaty-1.html">Подробная информация о способах оплаты</a>                
+                            
+                            <br><br><br><br><br><br>
+                            <small>Представленная на данной странице информация не является договором-офертой.</small>
+                        </td>
+                        <td class="invis-table" style="width:30px;"></td>
+                        <td class="invis-table" style="font-size: 1em; width:270px; text-align:center; vertical-align:top;">
+                        	<a href="sposoby_oplaty-1.html#term"><img src="i/pay24kg-1.png"></a><br>
+                        	<a href="sposoby_oplaty-1.html#elsom"><img src="i/logoelsom-1.png"></a><br><br>
+                        	<a href="sposoby_oplaty-1.html#cards"><img src="i/cards_-1.png"></a><br>
+                        </td>
+                    </tr>
+                </table>
+
+
+            </div><!-- .content -->
+        </div><!-- #page -->
+
+        <div class="footer">
+            <ul class="b-menu">
+                <li><a href="prices-1.html">Услуги и цены</a></li>
+                <li><a href="techno-1.html">Технические возможности</a></li>
+                <li><a href="about-1.html">Надежность и безопасность</a></li>
+                <li><a href="faq-1.html">Вопросы и ответы</a></li>
+                <li><a href="contacts-1.html">Контакты</a></li>
+            </ul>
+
+            <div class="copiright corners corners-5">
+                <a class="f-right" href="contacts-1.html">Тел: +996 (312) 90-16-61</a>
+                <p>© ОсОО "Никита Онлайн", ОсОО "Никита Мобайл", 2014-2023 г.</p>
+                <em class="bl"></em><em class="br"></em>
+            </div><!-- .copiright -->
+
+        </div><!--.footer -->
+
+        <div class="slide-out-div" id="slideLabel" style="display: none;">
+            <a class="handle" href="http://link-for-non-js-users/">NO JAVA</a>
+
+            <center><b>Внимание, СКИДКИ!</b>
+                <br><br>
+                Только до конца марта.<br>
+                Укажите при регистрации ПРОМО-код акции: <b>2012</b><br>
+                и получите скидку <b>10%</b> на цену SMS<br>
+                в любом из базовых тарифов!
+            </center>
+        </div>
+
+        <div class="slide-out-div-2" id="slideLabel2" style="display: none;">
+            <div align="center" id="firstStep">
+                <a class="handle2" href="http://link-for-non-js-users/">NO JAVA</a><br>
+                <b>Проверь скорость доставки СМС!</b><br><br>
+				+996 - <input style="width: 25px;" maxlength="3" id="ssph1"> - <input style="width: 45px;" maxlength="6" id="ssph2">
+                <br><br>
+                <div id="ssreg">&nbsp;</div>
+                <div id="ssop">&nbsp;</div>
+                <div id="ssgmt">&nbsp;</div>
+                <div class="button_contine" style="float: right; margin: 10px 90px 0px;">
+                    <a id="bSend" href="#">
+                        <em class="rc"></em>
+                        <em class="lc"></em>
+						Отправить
+                    </a>
+                </div>
+            </div>
+            <div align="center" id="secondStep" style="display: none;">
+                <a class="handle2" href="http://link-for-non-js-users/">NO JAVA</a><br>
+                <div id="sText"><img src="../i/s_clock-1.png" alt="" width="7" height="7"></div>
+                <div class="button_contine" style="float: right; margin: 25px 90px 0px;">
+                    <a id="bAgain" href="#">
+                        <em class="rc"></em>
+                        <em class="lc"></em>
+                        Повторить
+                    </a>
+                </div>
+            </div>
+            <div align="center" id="failStep" style="display: none;">
+                <a class="handle2" href="http://link-for-non-js-users/">NO JAVA</a><br>
+                <div id="failInfo"></div>
+                <div class="button_contine" style="float: right; margin: 25px 90px 0px;">
+                    <a id="bAgain2" href="#">
+                        <em class="rc"></em>
+                        <em class="lc"></em>
+                        Повторить
+                    </a>
+                </div>
+            </div>
+            <input type="hidden" id="timer">
+        </div>
+    </body>
+    <head><meta http-equiv="PRAGMA" content="NO-CACHE"></head>
+</html>

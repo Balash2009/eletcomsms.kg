@@ -1,0 +1,580 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head profile="http://gmpg.org/xfn/11">
+        <title>smspro.nikita.kg — Автоматическая система рассылки SMS</title>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="imagetoolbar" content="no">
+        <meta http-equiv="PRAGMA" content="NO-CACHE">
+        <link rel="icon" href="file:///c%3A/Eletecom.kg/eletcom.kg/icon.png">
+        <script type='text/javascript' src='../js/jquery-1.js'></script>
+        <script type='text/javascript' src='../js/jquery.cookie-1.js'></script>
+        <script type='text/javascript' src='../js/jquery-ui-1.8.9.custom.min-1.js'></script>
+        <script type='text/javascript' src='../js/jquery.validate-1.js'></script>
+        <link rel="stylesheet" href="../css/cssf-base-1.css" type="text/css" media="screen">
+
+        <!-- JQuery UI styles -->
+        <link rel="stylesheet" type="text/css" href="../js/themes/ui-lightness/jquery.ui.all-1.css">
+        <!-- Designer's styles -->
+        <link rel="stylesheet" href="css/styles-1.css" type="text/css" media="screen">
+
+        <!--[if lte IE 6]><link rel="stylesheet" href="/css/cssf-ie6.css" type="text/css" media="screen" /><![endif]-->
+        <!--[if IE 7]><link rel="stylesheet" href="/css/cssf-ie7.css" type="text/css" media="screen" /><![endif]-->
+
+        <!-- Скрипты для работы слайдера со скидкой -->
+        <script type='text/javascript' src="../js/jquery.tabSlideOut.v1.3-1.js"></script>
+        <script type='text/javascript' src='../js/jquery.timers-1.js'></script>
+        <script type='text/javascript' src="js/slideLabel-1.js"></script>
+
+        <style type="text/css">
+            .invalid{background-color:#f00}
+        </style>
+    </head>
+    <body>
+        <!-- Jquery AJAX block -->
+        <script type="text/javascript">
+        function getVariable(varName)
+        {                   
+        	var arg=location.search.substring(1).split('&')
+        	var variable=""
+        	var i
+        	for(i=0;i<arg.length;i++)
+        	{
+        		if(arg[i].split('=')[0]==varName)
+        		{
+        			if(arg[i].split('=').length>1)
+        			{
+        				variable=arg[i].split('=')[1];
+        			}
+        			return variable;
+        		}
+        	}
+        	return "";
+        }
+        
+		
+		var isShowLbl1 = true;
+		var serviceName = 'smspro.nikita.kg';
+
+		jQuery(document).ready(function(){
+                   
+                        var salon_id = getVariable("salon_id");
+                        if (salon_id.length > 0) {
+                            $("#salon_id").val(salon_id);
+                        }
+			// отображение информации о выбранном тарифе:
+			var tarifPay=getVariable("pay");
+			if (tarifPay.length > 0)
+			{
+				if (tarifPay==50000)                    
+				{
+					document.all['viptarifinfo'].style.display="block";
+				} else {
+					document.all['smsprice'].innerText=getVariable("price");
+					document.all['tarifpay'].innerText=tarifPay;
+					document.all['tarifinfo'].style.display="block";
+				}
+			}
+			
+			var $dialog = $('<div></div>')
+			.html('<div id="errnotes"/>')
+			.dialog({
+				autoOpen: false,
+				title: "Ошибка",
+				resizable: false,
+				modal: true,
+				buttons: {
+					"Закрыть": function() {
+						$( this ).dialog( "close" );
+					}
+				},
+				open: function() {
+					$('.ui-dialog-buttonset').css('text-align','center');
+					$('.ui-dialog-buttonset').css('float','none');
+					$('.ui-icon-closethick').hide();
+				}
+			});
+			jQuery('#doReg').click(function(){
+				var filter = /^([a-zA-Z0-9_]){1,20}$/;
+				var errorPhone = false;
+				if ($('#telImp').val()!= ''){
+					$.ajax({
+						dataType : 'json',
+						async: false,
+						url: ('/ajax/checkPhone?action=checkPhoneR&phone=996' + $('#telInp').val()) + '&serviceName=' + serviceName,
+						success: function(json){
+							if (json.res == 0){
+								$('#telInp').addClass('invalid');
+								errorPhone = true;
+							}
+						}
+					});
+				}
+				if (! validate(null, null) || errorPhone) {
+					$("#errorPanel").show();
+					setTimeout('$("#errorPanel").fadeOut(900)', 3500);
+				}
+				else if (! filter.test($('#login').val())) {
+					$("#errorPanel").show();
+					$("#errorPanel").html('Введены некорректные данные.<br/>Логин должен содержать не более 20 латинских букв и цифр');
+					$('#login').addClass('invalid');
+				}
+				else {
+					
+					if(!document.getElementById("oferta").checked){
+						$("#errorPanel").show();
+						$("#errorPanel").html('Вы не приняли условия договора-оферты и политики конфиденциальности - регистрация невозможна');
+						setTimeout('$("#errorPanel").fadeOut(900)', 3500);
+					} else {
+						$('#tel').val("996" + $('#telInp').val());
+						$.ajax({
+							url: '/register',
+							dataType : 'json',
+							data : $("#regForm").serialize() + '&serviceName=' + serviceName,
+							success: function(jo) {
+								if (jo.error.length > 0) {
+									$('input').filter('[id="' + jo.result + '"]').addClass('invalid');
+									//alert(jo.error);
+									$dialog.dialog('open');
+									$('#errnotes').html("<br/><img src='i/stop.png' alt=''/>&nbsp;" + jo.error + "<br/>");
+								}
+								else {
+									$("#regForm").get(0).reset();
+									$('#notRegistered').hide();
+									$('#fieldreq').hide();
+									$('#okRegistered').show();
+									$('li[class="f-right"]').hide();
+									$("#profileSaved").show();
+									if (jo.setDiscount == 1){
+										$('#discount').show();
+										$('#discountValue').html(jo.discountValue);
+									}else{
+										$('#discount').hide();
+									}
+									if (jo.isPhone == 1){
+										$('#phoneYes').show();
+										$('#phoneNo').hide();
+									}else{
+										$('#phoneYes').hide();
+										$('#phoneNo').show();
+									}
+									setTimeout('$("#profileSaved").fadeOut(900)', 3500);
+								}
+							}
+						});
+					}
+				}
+				$('.invalid').keyup(function() {
+					var o = $( this );
+					if (o.hasClass('invalid')) {
+						$("#errorPanel").hide();
+						o.removeClass('invalid');
+					}
+				});
+				$("#capimg").attr("src", "/getCaptcha?t=" + new Date().getTime());
+				$("#captcha").val("");
+			});
+			jQuery('#cancelReg').click(function(){
+				$("#regForm").get(0).reset();
+				return false;
+			});
+			
+			$.ajax({
+				url: '/register',
+				dataType : 'json',
+				data : 'command=check',
+				cache: false,
+				success: function(jo) {
+					if ("" + jo.result == "1") {
+						$('#notRegistered').hide();
+						$('#fieldreq').hide();
+						$('#registered').show();
+						
+						$('#slideLabel').hide();
+						//!isShowLbl1 = false;
+					}
+				}
+			});
+			$('.prevent').click(function() {
+				return false;
+			});
+
+			$('#passhelp_sign').mouseover(function(){
+				$('#passhelp_sign').children('img').after( $("#passhelp") );
+				$("#passhelp").show();
+			});
+			$('#passhelp_sign').mouseout(function(){
+				$("#passhelp").hide();
+			});
+			$('#promohelp_sign').mouseover(function(){
+				$('#promohelp_sign').children('img').after( $("#promohelp") );
+				$("#promohelp").show();
+			});
+			$('#promohelp_sign').mouseout(function(){
+				$("#promohelp").hide();
+			});
+			$('#clickOferta').click(function(){
+				if ($('#oferta').prop('checked')){
+					$('#oferta').attr('checked', false);
+				}else{
+					$('#oferta').attr('checked', true);
+				}
+			});
+			// скрывание слайдера ярлыка со скидкой если запрос пришел не с директа
+			if (location.search.indexOf(flag) > -1 || document.referrer.indexOf(directYandexN) > -1 || isCookieSet(cooName)){
+				$('#slideLabel').show();
+				setCookie(cooName,1);
+			}else{
+				$('#slideLabel').hide();
+				//!isShowLbl1 = false;
+			}
+			if (!isShowLbl1){
+				topPos = '155px';
+			}
+			
+			$.ajax({
+				url: '/register',
+				dataType : 'json',
+				data : 'command=getCookieInvite',
+				cache: false,
+				success: function(jo) {
+					if ("" + jo.res == "1") {
+						$('#fio').val(jo.inviteN);
+						$('#email').val(jo.inviteE);
+						$('#ppromo').val(jo.inviteP);
+					}else{
+					}
+				}
+			});
+		});
+        </script>
+        <script type='text/javascript' src="js/slideLabel2-1.js" charset="windows-1251"></script>
+
+	<!-- Yandex.Metrika counter -->
+	<script type="text/javascript">
+	   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+	   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+	   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+	   ym(88356562, "init", {
+		clickmap:true,
+		trackLinks:true,
+		accurateTrackBounce:true
+	   });
+	</script>
+	<noscript><div><img src="../watch/88356562/1" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+	<!-- /Yandex.Metrika counter -->
+
+        <div id="page">
+            <div class="okey" id="profileSaved" style="display: none">
+                <img src="i/okey-1.png" alt=""> Данные успешно сохранены
+            </div><!-- okey -->
+            <div class="okey" id="errorPanel" style="display: none; background: red">
+                Введены некорректные данные
+            </div><!-- okey -->
+            <div class="help_colaut" style="display: none" id="passhelp">
+                <p>Например, +996551234567</p>
+                <div class="arrow-h"></div><!-- .arrow-h -->
+            </div><!-- .help_colaut -->
+            <div class="help_colaut" style="display: none" id="promohelp">
+                <p>Наличие кода может дать дополнительные скидки</p>
+                <div class="arrow-h"></div><!-- .arrow-h -->
+            </div><!-- .help_colaut -->
+
+            <div id="for_header">
+                <div class="header">
+                    <div class="auth f-right">
+                        <!-- -->
+                    </div><!-- .auth -->
+                  </div><!-- .logo -->
+                    <div class="slogan f-left">
+                        
+                        <a href="file:///c%3A/Eletecom.kg/eletcom.kg/index-1.html">
+                            <img src="file:///c%3A/Eletecom.kg/eletcom.kg/logo.png" style="width: 250px; height: 80px; margin-top: -10%;">
+                        
+                        </a>
+    
+
+                    </div><!-- .slogan	-->
+                    <img class="phonchik f-right" style="width: 250px; height: 100px; margin-top: -1%; " src="file:///C:/Users/Mir_NotebookA/Downloads/%D0%91%D0%B5%D0%B7%D1%8B%D0%BC%D1%8F%D0%BD%D0%BD%D1%8B%D0%B9.png">
+                </div><!-- .header-->
+            </div>
+
+            <nav class="skew-menu" style="margin-top: -1%; ">
+               
+                <ul>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/index-1.html">Главное</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/prices-1.html">Услуги и цены</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/techno-1.html">Технические возможности</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/about-1.html">Надежность и безопасность</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/faq-1.html">Вопросы и ответы</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/contacts-1.html">Контакты</a></li>
+                  <li><a href="file:///c%3A/Eletecom.kg/eletcom.kg/kg/register-1.html">Регистрация</a></li>
+                </ul>
+              
+              </nav>       
+
+            <div class="content">
+                <div class="page-layout">
+                    <div class="container">
+
+                        <div class="layout-box lb-2">
+
+                            <div class="corners corners-10">
+                                <h2>Регистрация</h2>
+                                <em class="tl"></em><em class="tr"></em>
+                            </div><!-- .corners corners-10 -->
+
+                            <div class="borderbox" id="notRegistered">
+                            
+                               <div style="margin-left:10%; font-size:1.05em; color:#333333; margin-right:5%; margin-top:10px; margin-bottom:20px">
+                            	<div id="tarifinfo" style="display:none">
+                            		Вы выбрали тариф с ценой одного SMS <b id="smsprice"></b> руб. по России.
+                            		<br>
+									Пожалуйста, завершите регистрацию, чтобы активировать 10 бесплатных SMS и проверить качество нашего сервиса.
+									<br><br>
+									Для активации выбранного тарифа вам достаточно пополнить счет любой суммой большей <b id="tarifpay"></b> руб.                            	
+                            	</div>
+                            	<div id="viptarifinfo" style="display:none">
+                            		Вы выбрали эксклюзивный тариф со специальной ценой от 0.08 до 0.25 руб/SMS по России.
+                            		<br>
+									Данный тариф рекомендован при закупках трафика от 200 000 SMS либо при платежах от 50 000 руб.
+									<br><br>
+									Пожалуйста, завершите регистрацию, чтобы проверить наш сервис в работе. Затем свяжитесь с менеджером (<a href="mailto:smspro@nikita.kg">smspro@nikita.kg</a>, +996 (312) 90-16-61) для согласования цены.
+								</div>
+							   </div>
+                            	
+
+
+                                <form action="register" id="regForm">
+                                    <div class="half"><p align="right"><label for="login"><img src="i/required1-1.gif" alt="*">Логин:</label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="text" class="text required" size="32" maxlength="20" value="" id="login" name="login"></p></div><!-- .half -->
+
+                                    <div class="half"><p align="right"><label for="fio"><img src="i/required1-1.gif" alt="*">ФИО:</label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="text" class="text required" size="32" maxlength="200" value="" id="fio" name="fio"></p></div><!-- .half -->
+                                    <div class="half"><p align="right"><label for="company"><img src="i/required1-1.gif" alt="*">Название компании:</label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="text" class="text" value="" size="32" maxlength="200" id="company" name="company"></p></div><!-- .half -->
+
+                                    <div class="half"><p align="right"><label for="email"><img src="i/required1-1.gif" alt="*">Электронный адрес:</label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="email" class="text required email" size="29" maxlength="40" value="" id="email" name="email"><br>
+									<small class="gray_text">Пароль создастся автоматически и будет отправлен на ваш e-mail</small></p></div><!-- .half -->
+
+                                    <div class="half"><p align="right"><label for="telInp">Телефон:</label></p></div><!-- .half -->
+
+                                    <!-- validate-->
+                                    <div class="half"><p><input type="tel" class="text phone" size="32" maxlength="9" value="" id="telInp" name="telInp">&nbsp;<span class="help" id="passhelp_sign" style="position: relative; font-size: 1em; z-index: 10;"><img src="i/help-1.png" alt="Помощь"></span>
+
+                                            <br><small class="gray_text">Укажите телефон, чтобы получить PIN-код для активации начального тарифа и <u>15 сом для проверки сервиса</u>.</small></p></div><!-- .half -->
+
+                                    <div class="half"><p align="right"><label for="promo">Промо-код:</label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="text" class="text" size="32" maxlength="8" value="" id="ppromo" name="ppromo">&nbsp;<span class="help" id="promohelp_sign" style="position: relative; font-size: 1em; z-index: 10;"><img src="i/help-1.png" alt="Помощь"></span>
+
+                                            <br><small class="gray_text">Если у вас нет промо-кода оставьте поле пустым</small>
+
+                                        </p></div><!-- .half -->
+                                    <input type="hidden" id="salon_id" name="salon_id">
+                                    <div class="half"><p align="right">Введите символы<br>на картинке</p></div><!-- .half -->
+                                    <div class="half"><p><label for="captcha"><img src="../getCaptcha-1" alt="" id="capimg"></label>
+                                            <br>
+                                            <input type="text" value="" class="text" id="captcha" size="32" maxlength="6" name="captcha">
+                                        </p></div><!-- .half -->
+
+                                    <div class="half"><p align="right"><label for=""><img src="i/required1-1.gif" alt="*"></label></p></div><!-- .half -->
+                                    <div class="half"><p><input type="checkbox" class="" value="" id="oferta" name="oferta"><span id="clickOferta" style="cursor: pointer">&nbsp;я принимаю условия </span><a href="oferta-1.html" target="_blank">договора-оферты</a> и <a href="privacy-1.html" target="_blank">политики конфиденциальности</a></p></div><!-- .half -->
+
+                                    <div class="cc"></div>
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">
+                                        <!--<input type="button" class="button" value="Сохранить" id="updateProfileBtn" />-->
+                                        <div class="button_contine">
+                                            <a href="#" id="doReg">
+                                                <em class="rc"></em>
+                                                <em class="lc"></em>
+                                	Готово!
+                                            </a>
+                                        </div><!-- .button_contine	-->
+
+                                    </div><!-- .half -->
+                                    <!--<div class="half"><p align="right"><input type="button" value="Зарегистрироваться" class="button" id="doReg"/></p></div>--><!-- .half -->
+                                    <input type="hidden" name="command" value="register" id="command">
+                                    <input type="hidden" name="tel" value="" id="tel">
+                                    <div class="cc"></div>
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">
+                                        <small><img src="i/required1-1.gif" alt="*" style="margin-right: -3px"> - обязательные поля</small>
+                                    </div><!-- .half -->
+
+                                    <div class="cc"></div>
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+                                    <div class="half">&nbsp;&nbsp;</div><!-- .half -->
+
+                                </form>
+
+                                <div class="cc"></div><!-- .cc -->
+                                <em class="bl"></em><em class="br"></em>
+
+                            </div><!--  .borderbox	-->
+
+                            <div class="borderbox" id="registered" style="display: none;">
+                                <div class="half"><p style="color:red">Вы уже зарегистрированы!</p></div><!-- .half -->
+                                <div class="cc"></div>
+                                <div class="half">
+                                    <div class="button_contine">
+                                        <a href="../mainlk.jsp-1.html">
+                                            <em class="rc"></em>
+                                            <em class="lc"></em>
+                                	Вернуться на главную страницу
+                                        </a>
+                                    </div><!-- .button_contine	-->
+                                </div><!-- .half -->
+                                <div class="cc"></div><!-- .cc -->
+                                <em class="bl"></em><em class="br"></em>
+                            </div> <!-- .borderbox -->
+
+
+                            <div class="borderbox" id="okRegistered" style="display: none;">
+                                <h4>Поздравляем!</h4>
+                                <br>
+                                <p>
+                                    Вы успешно зарегистрированы в системе.
+                                    <br><br>
+                                    <span id="discount" style="display: none;">
+									Для вас была активирована скидка <span id="discountValue"></span>% на все базовые тарифы
+                                        <br><br>
+                                    </span>
+                                    На указанный вами e-mail выслано письмо с паролем доступа.<br>
+                                    <br><br>
+                                    <span id="phoneYes" style="display: none;">
+                                        На указанный вами номер телефона отправлено SMS с 4-значным PIN-кодом активации тарифа "<a href="prices-1.html" target="_blank">СТАРТ</a>" и зачислено 15 сом на счет. Введите полученный PIN-код в вашем личном кабинете на странице «<a href="../myProfile.jsp-1.html?login=ok" target="_blank">МОЙ ПРОФИЛЬ</a>».
+                                        <br><br>
+                                    </span>
+                                    <span id="phoneNo" style="display: none;">
+									Для активации начального тарифа и получения 15 сом для проверки сервиса, введите номер телефона в вашем личном кабинете на странице «<a href="../myProfile.jsp-1.html?login=ok" target="_blank">МОЙ ПРОФИЛЬ</a>», получите PIN-код на указанный номер телефона, и введите PIN-код в личном кабинете.
+                                        <br><br>
+                                    </span>
+                                    Сразу после активации тарифа вы сможете пользоваться <b>всеми возможностями</b> сервиса:
+                                    <br>
+                                    <ul>
+                                    	<li>Проводить SMS-рассылки с этого сайта.</li>
+                                        <li>Отправлять сообщения используя наше API со своих ресурсов.</li>
+                                        <li>Пользоваться отчетами о доставке, HLR-запросами и другими полезными функциями.</li>                                        
+                                    </ul>
+                                  
+                                    В качестве имени отправителя («<b>от кого</b>» будут приходить ваши сообщения) вы сможете использовать номер мобильного телефона, указанный вами при регистрации.
+                                    <br><br>
+                                    
+									Если вы не указали номер при регистрации, вы всегда сможете сделать это позже в вашем личном кабинете.
+									<br><br>
+									
+									Для отправок SMS от произвольных имен (например, от «<b>my_company.kg</b>») вам потребуется заключить с нами договор.
+                                    <br><br>
+                                    <b>Для перехода на более выгодные тарифы</b> внесите первоначальный платеж в соответствии с <a href="prices-1.html" target="_blank">описанием тарифов</a>.
+                                
+                                	<br><br>                                
+                                                               
+                                    <div class="button_contine" style="padding-left:43%">
+                                        <a href="../myProfile.jsp-1.html?login=ok" id="myProfileLink">
+                                            <em class="rc"></em>
+                                            <em class="lc"></em>
+                                	&nbsp;&nbsp;Поехали!&nbsp;&nbsp;
+                                        </a>
+                                    </div><!-- .button_contine	-->
+                                
+                                
+                                <br><br>
+                                <br><br>
+                                <div class="cc"></div><!-- .cc -->
+                                <em class="bl"></em><em class="br"></em>
+                            </div> <!-- .borderbox -->
+
+
+                        </div> <!--  .layout-box lb-2" -->
+
+                        <div class="layout-box lb-3">
+                            <div class="corners corners-10">
+                                <h2 class="black">Сразу после регистрации!</h2>
+                                <em class="tl"></em><em class="tr"></em>
+                            </div><!-- .corners corners-10 -->
+                            <div class="borderbox">
+                                Сразу после регистрации <b>вы получаете</b>:
+                                <br><br>
+                                <ul class="links">
+                                    <li><b>Рабочий тариф и 15 сом на баланс</b> для проверки сервиса</li>
+                                    <li>Возможность <b>пополнить счет online</b> всеми доступными <a href="sposoby_oplaty-1.html" target="blank">способами</a></li>
+                                    <li>Возможность проводить полноценные рекламные <b>SMS-рассылки</b></li>
+                                    <li>Возможность полноценной интеграции по API с функциями <a href="hlr_zaprosy-1.html" target="blank">HLR & PhoneInfo</a></li>
+                                </ul>
+                                <div class="cc"></div><!-- .cc -->
+                                <em class="bl"></em><em class="br"></em>
+                            </div><!-- .borderbox -->
+
+                            <div class="corners corners-10">
+                                <h2 class="black">Требуется ли договор?</h2>
+                                <em class="tl"></em><em class="tr"></em>
+                            </div><!-- .corners corners-10 -->
+                            <div class="borderbox">
+                            	Заключение договора может потребоваться только в следующих случаях:
+                            	<br><br> 
+                                <ul class="links">
+                                    <!--li>Если вам необходимо подменять имя отправителя</li-->
+                                    <li>Если вам требуется корректная бухгалтерская отчетность</li>                                    
+                                    <li>Для возможности самостоятельного выставления счета на оплату услуг</li>                                    
+                                </ul>
+                                <div class="cc"></div><!-- .cc -->
+                                <em class="bl"></em><em class="br"></em>
+                            </div><!-- .borderbox -->
+
+                        </div><!-- layout-box lb-3 -->
+
+                    </div> <!-- container -->
+                </div> <!-- .page layout -->
+
+            </div><!-- .content -->
+        </div><!-- #page -->
+
+        <div id="for_footer">
+            <div class="footer">
+                <ul class="b-menu">
+                    <li><a href="prices-1.html">Услуги и цены</a></li>
+                    <li><a href="techno-1.html">Технические возможности</a></li>
+                    <li><a href="about-1.html">Надежность и безопасность</a></li>
+                    <li><a href="faq-1.html">Вопросы и ответы</a></li>
+                    <li><a href="contacts-1.html">Контакты</a></li>
+                </ul>
+
+				<div class="copiright corners corners-5">
+					<a class="f-right" href="contacts-1.html">Тел: +996 (312) 90-16-61</a>
+					<p>© ОсОО "Никита Онлайн", ОсОО "Никита Мобайл", 2014-2023 г.</p>
+					<em class="bl"></em><em class="br"></em>
+				</div><!-- .copiright -->
+
+            </div><!--.footer -->
+        </div>
+
+        <div class="slide-out-div" id="slideLabel" style="display: none;">
+            <a class="handle" href="http://link-for-non-js-users/">NO JAVA</a>
+
+            <center><b>Внимание, СКИДКИ!</b>
+                <br><br>
+                Только до конца марта.<br>
+                Укажите при регистрации ПРОМО-код акции: <b>2012</b><br>
+                и получите скидку <b>10%</b> на цену SMS<br>
+                в любом из базовых тарифов!
+            </center>
+        </div>
+
+    </body>
+    <head><meta http-equiv="PRAGMA" content="NO-CACHE"></head>
+</html>
